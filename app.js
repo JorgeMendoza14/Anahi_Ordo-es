@@ -1,5 +1,5 @@
 // ===== Configuración =====
-const WHATSAPP = "593000000000"; // Cambia por el número del local (código de país sin +)
+const WHATSAPP = "593 994713884"; // Cambia por el número del local (código de país sin +)
 const money = (n) => "$" + n.toFixed(2);
 
 const SERVICES = [
