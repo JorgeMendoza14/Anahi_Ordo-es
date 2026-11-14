@@ -144,3 +144,10 @@ code { background: var(--g100); color: var(--g800); padding: 1px 6px; border-rad
 .role-pill { font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: var(--g100); color: var(--g800); justify-self: start; }
 .role-pill.admin { background: var(--g700); color: var(--white); }
 @media (max-width: 860px) { .urow { grid-template-columns: 40px 1fr auto; } }
+.auth-card .brand-mark { font-size: 20px; }
+.hours-edit { display: grid; gap: 8px; }
+.hour-row { display: grid; grid-template-columns: 1fr 1fr 40px; gap: 8px; align-items: center; }
+.hour-row input { width: 100%; padding: 11px 12px; border-radius: 12px; border: 2px solid var(--line); outline: none; background: var(--white); }
+.hour-row input:focus { border-color: var(--g500); }
+.btn-sm-inline { padding: 9px 14px; font-size: 14px; }
+@media (max-width: 480px) { .hour-row { grid-template-columns: 1fr 40px; } .hour-row [data-horas] { grid-column: 1; } .hour-row .edit-btn { grid-row: 1 / span 2; grid-column: 2; } }

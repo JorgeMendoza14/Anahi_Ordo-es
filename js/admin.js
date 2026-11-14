@@ -416,11 +416,23 @@ function fillConfig() {
   const p = config.precios;
   $("#cfWhatsapp").value = config.whatsapp || "";
   $("#cfAviso").value = config.aviso || "";
-  $("#cfDireccion").value = config.direccion || "";
-  $("#cfHorario").value = (config.horario || []).map((h) => `${h.dia} = ${h.horas}`).join("\n");
+  $("#cfHorario").innerHTML = "";
+  (config.horario || []).forEach((h) => addHourRow(h.dia, h.horas));
+  if (!config.horario?.length) addHourRow("", "");
   $("#cfBn").value = p.bn; $("#cfColor").value = p.color; $("#cfAnillado").value = p.anillado;
   $("#cfPortada").value = p.portada; $("#cfDescDesde").value = p.descuentoDesde; $("#cfDesc").value = p.descuento;
 }
+function addHourRow(dia = "", horas = "") {
+  const row = document.createElement("div");
+  row.className = "hour-row";
+  row.innerHTML = `<input data-dia placeholder="Día (ej. Lunes a viernes)" maxlength="40" value="${esc(dia)}">
+    <input data-horas placeholder="Horas (ej. 7:00 – 20:00 o Cerrado)" maxlength="40" value="${esc(horas)}">
+    <button type="button" class="edit-btn" data-del-hour aria-label="Quitar">✕</button>`;
+  $("#cfHorario").appendChild(row);
+}
+$("#addHour").addEventListener("click", () => { addHourRow(); $("#cfHorario .hour-row:last-child [data-dia]").focus(); });
+$("#cfHorario").addEventListener("click", (e) => { if (e.target.closest("[data-del-hour]")) e.target.closest(".hour-row").remove(); });
+
 $("#configForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const num = (s, d) => { const v = parseFloat($(s).value); return Number.isFinite(v) && v >= 0 ? v : d; };
@@ -429,10 +441,9 @@ $("#configForm").addEventListener("submit", async (e) => {
     nombre: config.nombre || DEFAULT_CONFIG.nombre,
     whatsapp: $("#cfWhatsapp").value.replace(/\D/g, ""),
     aviso: $("#cfAviso").value.trim(),
-    direccion: $("#cfDireccion").value.trim(),
-    horario: $("#cfHorario").value.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
-      const [dia, ...h] = l.split("="); return { dia: dia.trim(), horas: h.join("=").trim() };
-    }),
+    horario: [...document.querySelectorAll("#cfHorario .hour-row")].map((r) => ({
+      dia: r.querySelector("[data-dia]").value.trim(), horas: r.querySelector("[data-horas]").value.trim(),
+    })).filter((h) => h.dia || h.horas),
     precios: {
       bn: num("#cfBn", d.bn), color: num("#cfColor", d.color), anillado: num("#cfAnillado", d.anillado),
       portada: num("#cfPortada", d.portada), descuentoDesde: Math.max(1, num("#cfDescDesde", d.descuentoDesde)),

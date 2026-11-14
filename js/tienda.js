@@ -218,7 +218,6 @@ function renderAll() { renderConfig(); renderServices(); renderChips(); renderPr
 function renderConfig() {
   $("#aviso").textContent = config.aviso || "";
   $("#aviso").hidden = !config.aviso;
-  $("#direccion").textContent = config.direccion || "";
   $("#horario").innerHTML = (config.horario || []).map((h) =>
     `<li><span>${esc(h.dia)}</span><strong>${esc(h.horas)}</strong></li>`).join("");
   $("#waContact").href = waLink(config.whatsapp, "Hola, quisiera información sobre sus servicios.");

@@ -18,7 +18,7 @@
   <!-- Sin Firebase -->
   <div class="screen" id="scNoConfig" hidden>
     <div class="auth-card">
-      <span class="brand-mark">A</span>
+      <span class="brand-mark">MA</span>
       <h1>Falta conectar Firebase</h1>
       <p>Pega los datos de tu proyecto en <code>js/firebase-config.js</code>. Los pasos están en el README.</p>
       <a class="btn btn-ghost btn-block" href="index.html">Volver a la tienda</a>
@@ -41,7 +41,7 @@
   <div class="panel" id="scPanel" hidden>
     <aside class="side" id="side">
       <a href="index.html?tienda" class="brand" target="_blank">
-        <span class="brand-mark">A</span>
+        <span class="brand-mark">MA</span>
         <span class="brand-text">Panel<br><strong>Administrador</strong></span>
       </a>
       <nav class="side-nav">
@@ -119,8 +119,9 @@
             <label class="field"><span>WhatsApp (con código de país, sin +)</span><input id="cfWhatsapp" inputmode="numeric" placeholder="593991234567" required></label>
             <label class="field"><span>Aviso en portada</span><input id="cfAviso" placeholder="Abierto hoy · 7:00 – 20:00"></label>
           </div>
-          <label class="field"><span>Dirección</span><input id="cfDireccion"></label>
-          <label class="field"><span>Horario (una línea por día: <em>Día = horas</em>)</span><textarea id="cfHorario" rows="3"></textarea></label>
+          <h3>Horario de atención</h3>
+          <div class="hours-edit" id="cfHorario"></div>
+          <button type="button" class="btn btn-ghost btn-sm-inline" id="addHour">+ Agregar día</button>
           <h3>Precios del cotizador</h3>
           <div class="grid3">
             <label class="field"><span>Hoja B/N ($)</span><input id="cfBn" type="number" step="0.01" min="0"></label>
