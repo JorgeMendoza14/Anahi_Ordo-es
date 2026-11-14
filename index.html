@@ -50,6 +50,15 @@
       function why(m) { last = m || last; }
       window.addEventListener("error", function (e) { why((e.message || "Error") + (e.filename ? " (" + e.filename.split("/").pop() + ")" : "")); });
       window.addEventListener("unhandledrejection", function (e) { why(String(e.reason && (e.reason.code || e.reason.message) || e.reason)); });
+      // Evita que el formulario recargue la página si la app aún no arrancó
+      document.getElementById("authForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (!window.__appLista) {
+          var box = document.getElementById("authError");
+          box.textContent = "La app no terminó de cargar." + (last ? " Detalle: " + last : " Recarga con Ctrl+F5.");
+          box.hidden = false;
+        }
+      });
       setTimeout(function () {
         var l = document.getElementById("gateLoading"), g = document.getElementById("gate");
         if (!l || l.hidden || (g && g.hidden)) return;

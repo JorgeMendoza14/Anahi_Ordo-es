@@ -526,3 +526,4 @@ $("#custAddress").value = saved.direccion || "";
 $("#year").textContent = new Date().getFullYear();
 renderAll();
 startData();
+window.__appLista = true;
