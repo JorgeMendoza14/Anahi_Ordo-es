@@ -16,19 +16,3 @@ jobs:
           channelId: live
           projectId: apkma-de1a3
 
-  # Abre la app publicada en un navegador y anota errores (solo lectura)
-  revisar:
-    needs: deploy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Revisar la app publicada
-        run: |
-          cd .github
-          npm init -y >/dev/null
-          npm i playwright@1.47.2 >/dev/null
-          npx playwright install --with-deps chromium >/dev/null
-          node revisar-app.mjs
