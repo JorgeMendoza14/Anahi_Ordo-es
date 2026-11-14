@@ -1,7 +1,7 @@
 // Datos de ejemplo: se usan en MODO DEMO y para el botón "Cargar datos de ejemplo" del panel.
 export const DEFAULT_CONFIG = {
   nombre: "Multiservicio Escolar Anahí",
-  whatsapp: "593000000000",
+  whatsapp: "593994713884",
   direccion: "Av. Principal y calle Escolar, frente a la Unidad Educativa.",
   horario: [
     { dia: "Lunes a viernes", horas: "7:00 – 20:00" },
