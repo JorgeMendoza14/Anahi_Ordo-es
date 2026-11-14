@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diagnóstico</title>
+  <meta name="robots" content="noindex">
+  <style>
+    :root { --g: #198754; --g1: #e6f7ee; --t: #0b3d2a; --m: #4f7a65; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #f3fbf7; color: var(--t); margin: 0; padding: 16px; }
+    .card { max-width: 640px; margin: 0 auto; background: #fff; border: 1px solid #d4ece0; border-radius: 18px; padding: 20px; }
+    h1 { font-size: 20px; margin: 0 0 4px; } p { color: var(--m); margin: 0 0 14px; }
+    input { width: 100%; padding: 11px 12px; border: 2px solid #d4ece0; border-radius: 10px; font: inherit; margin-bottom: 8px; }
+    button { width: 100%; padding: 12px; border: 0; border-radius: 10px; background: var(--g); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+    ol { padding-left: 20px; margin: 16px 0 0; } li { margin: 6px 0; line-height: 1.4; }
+    .ok { color: var(--g); } .bad { color: #b42318; font-weight: 700; } .info { color: var(--m); }
+    code { background: var(--g1); padding: 1px 5px; border-radius: 5px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Diagnóstico de la app</h1>
+    <p>Escribe el correo y la contraseña con los que intentas entrar y pulsa <b>Probar</b>. Luego manda una captura de esta pantalla.</p>
+    <input id="email" type="email" placeholder="Correo" autocomplete="email">
+    <input id="pass" type="password" placeholder="Contraseña" autocomplete="current-password">
+    <button id="go">Probar</button>
+    <ol id="log"><li class="info">Cargando Firebase…</li></ol>
+  </div>
+  <script>
+    window.addEventListener("error", function (e) { add("bad", "Error de página: " + e.message); });
+    function add(cls, msg) {
+      var li = document.createElement("li"); li.className = cls; li.textContent = msg;
+      document.getElementById("log").appendChild(li);
+    }
+  </script>
+  <script type="module">
+    const log = document.getElementById("log");
+    const add = (cls, msg) => { const li = document.createElement("li"); li.className = cls; li.textContent = msg; log.appendChild(li); };
+    const V = "https://www.gstatic.com/firebasejs/10.12.2/";
+    let mods;
+    try {
+      const [app, au, fs, cfg] = await Promise.all([
+        import(V + "firebase-app.js"), import(V + "firebase-auth.js"), import(V + "firebase-firestore.js"),
+        import("./js/firebase-config.js"),
+      ]);
+      mods = { app, au, fs, cfg };
+      log.innerHTML = "";
+      add("ok", "✔ Firebase cargó. Proyecto: " + cfg.firebaseConfig.projectId);
+    } catch (e) {
+      add("bad", "✖ No se pudo cargar Firebase: " + e.message);
+    }
+    const withTimeout = (p, ms, what) => Promise.race([p, new Promise((_, r) => setTimeout(() => r({ code: "tiempo agotado (" + what + ")" }), ms))]);
+
+    document.getElementById("go").addEventListener("click", async () => {
+      if (!mods) return;
+      log.innerHTML = "";
+      const { app, au, fs, cfg } = mods;
+      const email = document.getElementById("email").value.trim();
+      const pass = document.getElementById("pass").value;
+      add("info", "Navegador: " + navigator.userAgent.split(") ").pop());
+      let a, db;
+      try {
+        const fb = app.getApps().length ? app.getApp() : app.initializeApp(cfg.firebaseConfig);
+        a = au.getAuth(fb); db = fs.getFirestore(fb);
+        add("ok", "✔ Conexión inicializada");
+      } catch (e) { return add("bad", "✖ Al iniciar Firebase: " + (e.code || e.message)); }
+
+      let user;
+      try {
+        const cred = await withTimeout(au.signInWithEmailAndPassword(a, email, pass), 15000, "inicio de sesión");
+        user = cred.user;
+        add("ok", "✔ Inicio de sesión correcto. UID: " + user.uid);
+      } catch (e) {
+        const m = {
+          "auth/invalid-credential": "correo o contraseña incorrectos (o la cuenta no existe: regístrate primero)",
+          "auth/invalid-email": "el correo no es válido",
+          "auth/operation-not-allowed": "el inicio con correo no está activado en Authentication → Email/Password",
+          "auth/too-many-requests": "demasiados intentos, espera unos minutos",
+          "auth/network-request-failed": "sin conexión con Firebase (internet, antivirus o bloqueador)",
+        };
+        return add("bad", "✖ Inicio de sesión falló: " + (m[e.code] || e.code || e.message));
+      }
+
+      try {
+        const snap = await withTimeout(fs.getDoc(fs.doc(db, "usuarios", user.uid)), 15000, "leer perfil");
+        if (!snap.exists()) add("bad", "✖ No existe tu perfil usuarios/" + user.uid + " (la app intentará crearlo)");
+        else {
+          const d = snap.data();
+          add("ok", "✔ Perfil encontrado. Campos: " + Object.keys(d).join(", "));
+          add(String(d.rol).trim().toLowerCase() === "admin" ? "ok" : "info", "Rol: " + JSON.stringify(d.rol) +
+            (String(d.rol).trim().toLowerCase() === "admin" ? " → entra al panel" : " → entra a la tienda como estudiante"));
+        }
+        if (!snap.exists()) {
+          try {
+            await withTimeout(fs.setDoc(fs.doc(db, "usuarios", user.uid), { rol: "estudiante", nombre: user.email.split("@")[0],
+              email: user.email, telefono: "", curso: "", creado: fs.serverTimestamp() }), 15000, "crear perfil");
+            add("ok", "✔ Perfil creado como estudiante");
+          } catch (e) { add("bad", "✖ No se pudo crear el perfil: " + (e.code || e.message) + " → publica las reglas nuevas"); }
+        }
+      } catch (e) {
+        add("bad", "✖ Leer perfil falló: " + (e.code || e.message) + (e.code === "permission-denied" ? " → publica las reglas nuevas" : ""));
+      }
+
+      try {
+        const p = await withTimeout(fs.getDocs(fs.collection(db, "productos")), 15000, "leer productos");
+        add("ok", "✔ Productos visibles: " + p.size);
+      } catch (e) { add("bad", "✖ Leer productos falló: " + (e.code || e.message)); }
+
+      try { await au.signOut(a); add("info", "Listo. Sesión cerrada en esta página."); } catch {}
+    });
+  </script>
+</body>
+</html>
