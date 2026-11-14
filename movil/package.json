@@ -1,0 +1,13 @@
+{
+  "name": "mariscal-ayacucho-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App Android de Multiservicio Mariscal de Ayacucho (abre https://apkma-de1a3.web.app)",
+  "dependencies": {
+    "@capacitor/android": "6.1.2",
+    "@capacitor/core": "6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.1.2"
+  }
+}

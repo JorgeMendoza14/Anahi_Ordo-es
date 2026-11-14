@@ -1,0 +1,13 @@
+{
+  "appId": "com.mariscalayacucho.app",
+  "appName": "Mariscal de Ayacucho",
+  "webDir": "www",
+  "server": {
+    "url": "https://apkma-de1a3.web.app",
+    "androidScheme": "https"
+  },
+  "android": {
+    "appendUserAgent": "MariscalApp",
+    "backgroundColor": "#ffffff"
+  }
+}

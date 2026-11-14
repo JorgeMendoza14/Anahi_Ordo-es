@@ -1,0 +1,47 @@
+# Construye el APK de Android y lo publica en:
+# https://github.com/JorgeMendoza14/Anahi_Ordo-es/releases/download/apk/MariscalAyacucho.apk
+# El APK abre la app publicada (apkma-de1a3.web.app), así que los cambios de la web le llegan sin reinstalar.
+name: Construir APK Android
+on:
+  push:
+    branches: [main]
+    paths: ["movil/**", ".github/workflows/apk.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Crear proyecto Android
+        working-directory: movil
+        run: |
+          npm install
+          npx cap add android
+          npx --yes @capacitor/assets@3.0.5 generate --android --iconBackgroundColor '#198754' --iconBackgroundColorDark '#198754' --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#ffffff'
+          npx cap sync android
+      - name: Compilar APK
+        working-directory: movil/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - name: Publicar descarga
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp movil/android/app/build/outputs/apk/debug/app-debug.apk MariscalAyacucho.apk
+          gh release delete apk --yes --cleanup-tag || true
+          gh release create apk MariscalAyacucho.apk --title "App Android – Mariscal de Ayacucho" \
+            --notes "Descarga MariscalAyacucho.apk en tu Android y ábrelo para instalar (permite 'instalar apps desconocidas' si te lo pide)."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MariscalAyacucho-apk
+          path: MariscalAyacucho.apk

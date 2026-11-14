@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Multiservicio Mariscal de Ayacucho</title>
   <meta name="description" content="Copias, impresiones, anillados, útiles escolares y más. Haz tu pedido en línea.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#198754">
+  <link rel="icon" type="image/png" href="icons/favicon.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Mariscal">
+  <script src="js/pwa.js?v=20261114b" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=20261114b">
@@ -39,6 +46,10 @@
         <p class="form-error" id="authError" hidden></p>
         <button class="btn btn-primary btn-block" id="authSubmit">Ingresar</button>
         <button type="button" class="link-btn login-only" id="forgotBtn">¿Olvidaste tu contraseña?</button>
+        <div class="install-row">
+          <button type="button" class="btn btn-ghost" data-install hidden>📲 Instalar app</button>
+          <a class="btn btn-ghost" data-apk hidden download>🤖 Descargar APK</a>
+        </div>
       </form>
       <div class="gate-loading" id="gateLoading"><div class="spinner"></div><p>Cargando…</p></div>
     </div>
@@ -94,6 +105,8 @@
             <div class="um-head"><strong id="umName"></strong><small id="umEmail"></small><span class="role-tag" id="umRol"></span></div>
             <button data-um="orders">📋 Mis pedidos</button>
             <a href="admin.html" id="umAdmin" hidden>⚙️ Panel administrador</a>
+            <button data-install hidden>📲 Instalar app</button>
+            <a data-apk hidden download>🤖 Descargar APK</a>
             <button data-um="logout">↩ Cerrar sesión</button>
           </div>
         </div>

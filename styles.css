@@ -419,3 +419,5 @@ body.locked { overflow: hidden; }
 .brand-mark { flex: none; }
 .cart-count:empty { display: none; }
 @media (max-width: 400px) { .brand-text strong { font-size: 13px; } .topbar-inner { gap: 10px; } }
+.install-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.install-row .btn { flex: 1; min-width: 150px; padding: 11px 14px; font-size: 14px; }
