@@ -24,6 +24,18 @@
         <a href="#contacto">Contacto</a>
       </nav>
       <div class="topbar-actions">
+        <div class="user-wrap">
+          <button class="login-btn" id="userBtn" hidden>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            <span id="userLabel">Ingresar</span>
+          </button>
+          <div class="user-menu" id="userMenu" hidden>
+            <div class="um-head"><strong id="umName"></strong><small id="umEmail"></small></div>
+            <button data-um="orders">📋 Mis pedidos</button>
+            <a href="admin.html" id="umAdmin" hidden>⚙️ Panel administrador</a>
+            <button data-um="logout">↩ Cerrar sesión</button>
+          </div>
+        </div>
         <button class="cart-btn" id="openOrders" aria-label="Mis pedidos" title="Mis pedidos">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>
           <span class="cart-count" id="ordersCount"></span>
@@ -220,6 +232,29 @@
       <div class="drawer-body" id="ordersList"></div>
     </div>
   </aside>
+
+  <div class="modal" id="authModal" hidden>
+    <form class="modal-card auth-modal" id="authForm" novalidate>
+      <div class="modal-head">
+        <div class="tabs" id="authTabs">
+          <button type="button" data-auth="login" class="on">Ingresar</button>
+          <button type="button" data-auth="register">Registrarme</button>
+        </div>
+        <button type="button" class="icon-btn" id="authClose" aria-label="Cerrar">✕</button>
+      </div>
+      <p class="auth-msg" id="authMsg">Ingresa para enviar tu pedido y ver su estado.</p>
+      <div class="reg-only row2">
+        <label class="field"><span>Nombre completo</span><input id="regName" autocomplete="name" maxlength="80"></label>
+        <label class="field"><span>Teléfono</span><input id="regPhone" type="tel" autocomplete="tel" placeholder="0991234567"></label>
+      </div>
+      <label class="field reg-only"><span>Curso / escuela <em>(opcional)</em></span><input id="regCourse" maxlength="60" placeholder="Ej. 8vo B · U.E. Central"></label>
+      <label class="field"><span>Correo</span><input id="authEmail" type="email" autocomplete="email"></label>
+      <label class="field"><span>Contraseña</span><input id="authPass" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres"></label>
+      <p class="form-error" id="authError" hidden></p>
+      <button class="btn btn-primary btn-block" id="authSubmit">Ingresar</button>
+      <button type="button" class="link-btn login-only" id="forgotBtn">¿Olvidaste tu contraseña?</button>
+    </form>
+  </div>
 
   <div class="modal" id="okModal" hidden>
     <div class="modal-card ok-card">

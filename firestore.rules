@@ -3,16 +3,26 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
+    // Correos de administradores (deben coincidir con ADMIN_EMAILS en js/firebase-config.js)
+    function adminEmails() { return ['kevin@gmail.com']; }
+
     function isAdmin() {
-      return signedIn()
-        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
-        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+      return signedIn() && (
+        request.auth.token.email in adminEmails()
+        || (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+            && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin'));
     }
 
-    // Roles: solo se crean desde la consola de Firebase.
+    // Perfiles: cada estudiante crea y edita el suyo (siempre con rol "estudiante").
+    // Solo el admin puede ver a todos y cambiar roles.
     match /usuarios/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow write: if false;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.rol == 'estudiante'
+        && request.resource.data.keys().hasOnly(['rol','nombre','email','telefono','curso','creado']);
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == uid
+        && request.resource.data.rol == resource.data.rol);
+      allow delete: if isAdmin();
     }
 
     // Catálogo y ajustes: cualquiera puede verlos, solo el admin los cambia.
@@ -29,13 +39,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Pedidos: el cliente crea uno nuevo (siempre "pendiente") y puede consultarlo
-    // con su id; solo el admin puede listarlos, cambiar su estado o borrarlos.
+    // Pedidos: el estudiante con sesión crea los suyos (siempre "pendiente") y solo ve los suyos;
+    // el admin ve todos, cambia su estado o los borra.
     match /pedidos/{id} {
-      allow get: if true;
-      allow list, update, delete: if isAdmin();
-      allow create: if
-        request.resource.data.keys().hasOnly(['codigo','cliente','entrega','direccion','notas','items','total','estado','creado'])
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid','codigo','cliente','entrega','direccion','notas','items','total','estado','creado'])
         && request.resource.data.estado == 'pendiente'
         && request.resource.data.creado == request.time
         && request.resource.data.codigo is string && request.resource.data.codigo.size() <= 10

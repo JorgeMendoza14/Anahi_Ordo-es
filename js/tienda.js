@@ -1,7 +1,11 @@
-import { db, configured } from "./firebase.js";
+import { db, auth, configured, isAdminEmail } from "./firebase.js";
 import {
-  collection, doc, onSnapshot, addDoc, serverTimestamp,
+  collection, doc, onSnapshot, addDoc, setDoc, getDoc, query, where, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  sendPasswordResetEmail, signOut, updateProfile,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { DEFAULT_CONFIG, DEMO_PRODUCTS, DEMO_SERVICES } from "./data.js";
 import { money, esc, toast, waLink, fecha, codigoPedido, thumb, ESTADOS } from "./util.js";
 
@@ -12,8 +16,12 @@ let config = { ...DEFAULT_CONFIG };
 let products = [];
 let services = [];
 let cart = read("mea-cart", []);
-let myOrders = read("mea-pedidos", []); // ids de pedidos hechos desde este dispositivo
-const orderData = {};                   // id -> datos en vivo
+let user = null;       // usuario de Firebase Auth
+let perfil = null;     // documento usuarios/{uid}
+let myOrders = [];     // pedidos del estudiante (en vivo)
+let ordersUnsub = null;
+let pendingCheckout = false;
+let registering = false;
 let filter = { cat: "Todos", q: "" };
 let delivery = "Retiro en local";
 
@@ -44,19 +52,124 @@ function startData() {
       .sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99));
     syncCart(); renderServices();
   }, (e) => console.error(e));
-  myOrders.forEach(watchOrder);
+  $("#userBtn").hidden = false;
+  onAuthStateChanged(auth, onUser);
 }
 
-function watchOrder(id) {
-  onSnapshot(doc(db, "pedidos", id), (snap) => {
-    if (!snap.exists()) return;
-    const prev = orderData[id]?.estado;
-    orderData[id] = snap.data();
-    if (prev && prev !== orderData[id].estado) {
-      toast(`Pedido ${orderData[id].codigo}: ${ESTADOS[orderData[id].estado]?.label}`);
+// ===== Cuentas de estudiantes =====
+async function onUser(u) {
+  user = u;
+  if (ordersUnsub) { ordersUnsub(); ordersUnsub = null; }
+  myOrders = []; perfil = null;
+  if (u) {
+    if (!registering) await loadProfile();
+    watchMyOrders();
+  }
+  renderUser(); renderOrders();
+}
+
+async function loadProfile() {
+  try {
+    const ref = doc(db, "usuarios", user.uid);
+    const snap = await getDoc(ref);
+    if (snap.exists()) perfil = snap.data();
+    else {
+      perfil = { rol: "estudiante", nombre: user.displayName || user.email.split("@")[0], email: user.email, telefono: "", curso: "" };
+      if (!isAdminEmail(user.email)) await setDoc(ref, { ...perfil, creado: serverTimestamp() });
     }
+  } catch (e) { console.error(e); perfil = { nombre: user.displayName || user.email, email: user.email }; }
+  // Rellena los datos del pedido con los del perfil
+  if (perfil.nombre && !$("#custName").value) $("#custName").value = perfil.nombre;
+  if (perfil.telefono && !$("#custPhone").value) $("#custPhone").value = perfil.telefono;
+}
+
+function watchMyOrders() {
+  const known = {};
+  let first = true;
+  ordersUnsub = onSnapshot(query(collection(db, "pedidos"), where("uid", "==", user.uid)), (snap) => {
+    myOrders = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.creado?.toMillis?.() ?? Date.now()) - (a.creado?.toMillis?.() ?? Date.now()));
+    myOrders.forEach((o) => {
+      if (!first && known[o.id] && known[o.id] !== o.estado) toast(`Pedido ${o.codigo}: ${ESTADOS[o.estado]?.label}`);
+      known[o.id] = o.estado;
+    });
+    first = false;
     renderOrders();
-  }, () => {});
+  }, (e) => console.error(e));
+}
+
+function renderUser() {
+  const b = $("#userBtn");
+  b.classList.toggle("logged", !!user);
+  $("#userLabel").textContent = user ? (perfil?.nombre || user.email).split(" ")[0] : "Ingresar";
+  $("#umName").textContent = perfil?.nombre || "";
+  $("#umEmail").textContent = user?.email || "";
+  $("#umAdmin").hidden = !(user && (isAdminEmail(user.email) || perfil?.rol === "admin"));
+  if (!user) $("#userMenu").hidden = true;
+}
+
+let authMode = "login";
+function openAuth(mode = "login", msg) {
+  authMode = mode;
+  $("#authForm").classList.toggle("is-login", mode === "login");
+  $("#authForm").classList.toggle("is-register", mode === "register");
+  document.querySelectorAll("[data-auth]").forEach((b) => b.classList.toggle("on", b.dataset.auth === mode));
+  $("#authSubmit").textContent = mode === "login" ? "Ingresar" : "Crear mi cuenta";
+  $("#authPass").autocomplete = mode === "login" ? "current-password" : "new-password";
+  $("#authMsg").textContent = msg || (mode === "login" ? "Ingresa con tu cuenta de estudiante." : "Crea tu cuenta gratis para hacer pedidos y ver su estado.");
+  $("#authError").hidden = true;
+  $("#authModal").hidden = false;
+  setTimeout(() => (mode === "register" ? $("#regName") : $("#authEmail")).focus(), 50);
+}
+function closeAuth() { $("#authModal").hidden = true; pendingCheckout = false; }
+function authError(msg) { $("#authError").textContent = msg; $("#authError").hidden = false; }
+
+const AUTH_ERR = {
+  "auth/invalid-credential": "Correo o contraseña incorrectos.",
+  "auth/wrong-password": "Correo o contraseña incorrectos.",
+  "auth/user-not-found": "Correo o contraseña incorrectos.",
+  "auth/invalid-email": "El correo no es válido.",
+  "auth/email-already-in-use": "Ese correo ya tiene cuenta. Usa \"Ingresar\".",
+  "auth/weak-password": "La contraseña debe tener al menos 6 caracteres.",
+  "auth/too-many-requests": "Demasiados intentos. Espera unos minutos.",
+  "auth/network-request-failed": "Sin conexión a internet.",
+  "auth/operation-not-allowed": "El registro con correo no está activado en Firebase (Authentication → Email/Password).",
+};
+
+async function submitAuth(e) {
+  e.preventDefault();
+  const email = $("#authEmail").value.trim();
+  const pass = $("#authPass").value;
+  if (!email || !pass) return authError("Escribe tu correo y contraseña.");
+  const btn = $("#authSubmit");
+  btn.disabled = true;
+  try {
+    if (authMode === "login") {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } else {
+      const nombre = $("#regName").value.trim();
+      const telefono = $("#regPhone").value.trim();
+      if (!nombre) { btn.disabled = false; return authError("Escribe tu nombre."); }
+      if (!/^\+?[\d\s-]{7,15}$/.test(telefono)) { btn.disabled = false; return authError("Escribe un teléfono válido."); }
+      registering = true;
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      await updateProfile(cred.user, { displayName: nombre });
+      perfil = { rol: "estudiante", nombre, telefono, email: cred.user.email, curso: $("#regCourse").value.trim() };
+      if (!isAdminEmail(email)) await setDoc(doc(db, "usuarios", cred.user.uid), { ...perfil, creado: serverTimestamp() });
+      registering = false;
+      $("#custName").value = nombre; $("#custPhone").value = telefono;
+      renderUser();
+    }
+    const cont = pendingCheckout;
+    $("#authModal").hidden = true; pendingCheckout = false;
+    $("#authPass").value = "";
+    toast(authMode === "login" ? "¡Hola de nuevo!" : "¡Cuenta creada! Bienvenido/a");
+    if (cont) openCart("cart");
+  } catch (err) {
+    registering = false;
+    console.error(err);
+    authError(AUTH_ERR[err.code] || "No se pudo continuar (" + (err.code || err.message) + ").");
+  } finally { btn.disabled = false; }
 }
 
 // Actualiza precios del carrito con el catálogo en vivo y quita lo que ya no existe
@@ -154,10 +267,12 @@ function renderCart() {
 }
 
 function renderOrders() {
-  const ids = [...myOrders].reverse().filter((id) => orderData[id]);
-  $("#ordersCount").textContent = ids.filter((id) => !["entregado", "rechazado"].includes(orderData[id].estado)).length || "";
-  $("#ordersList").innerHTML = ids.length ? ids.map((id) => {
-    const o = orderData[id];
+  $("#ordersCount").textContent = myOrders.filter((o) => !["entregado", "rechazado"].includes(o.estado)).length || "";
+  if (configured && !user) {
+    $("#ordersList").innerHTML = `<div class="cart-empty"><div>🔐</div><p>Ingresa a tu cuenta para ver tus pedidos.</p><button class="btn btn-primary" data-open-auth>Ingresar</button></div>`;
+    return;
+  }
+  $("#ordersList").innerHTML = myOrders.length ? myOrders.map((o) => {
     const e = ESTADOS[o.estado] || ESTADOS.pendiente;
     const steps = ["pendiente", "aceptado", "listo", "entregado"];
     const idx = steps.indexOf(o.estado);
@@ -171,7 +286,7 @@ function renderOrders() {
       <p class="oc-msg">${esc(e.msg)}${o.motivo ? ` <em>${esc(o.motivo)}</em>` : ""}</p>
       <small class="oc-items">${o.items.map((i) => `${i.cantidad}× ${esc(i.nombre)}`).join(", ")}</small>
     </div>`;
-  }).join("") : `<div class="cart-empty"><div>📋</div><p>Aquí verás el estado de tus pedidos.</p></div>`;
+  }).join("") : `<div class="cart-empty"><div>📋</div><p>Aún no tienes pedidos.<br>Aquí verás su estado.</p></div>`;
 }
 
 // ===== Carrito =====
@@ -272,6 +387,11 @@ function orderText(o) {
 
 async function checkout() {
   if (!cart.length) return toast("Agrega algo a tu pedido primero");
+  if (configured && !user) {
+    pendingCheckout = true;
+    closeCart();
+    return openAuth("register", "Crea tu cuenta (o ingresa) para enviar tu pedido. Solo toma un minuto.");
+  }
   const nombre = $("#custName").value.trim();
   const telefono = $("#custPhone").value.trim();
   const direccion = $("#custAddress").value.trim();
@@ -280,7 +400,7 @@ async function checkout() {
   if (delivery !== "Retiro en local" && !direccion) { $("#custAddress").focus(); return toast("Escribe la dirección de entrega"); }
 
   const pedido = {
-    cliente: { nombre: nombre.slice(0, 80), telefono: telefono.slice(0, 20) },
+    cliente: { nombre: nombre.slice(0, 80), telefono: telefono.slice(0, 20), email: user?.email || "" },
     entrega: delivery,
     direccion: delivery === "Retiro en local" ? "" : direccion.slice(0, 200),
     notas: $("#notes").value.trim().slice(0, 500),
@@ -300,10 +420,9 @@ async function checkout() {
   try {
     pedido.codigo = codigoPedido();
     pedido.estado = "pendiente";
+    pedido.uid = user.uid;
     pedido.creado = serverTimestamp();
-    const ref = await addDoc(collection(db, "pedidos"), pedido);
-    myOrders.push(ref.id); write("mea-pedidos", myOrders);
-    watchOrder(ref.id);
+    await addDoc(collection(db, "pedidos"), pedido);
     cart = []; commit();
     $("#notes").value = "";
     $("#okCode").textContent = "#" + pedido.codigo;
@@ -336,10 +455,32 @@ $("#openCart").addEventListener("click", () => openCart("cart"));
 $("#openOrders").addEventListener("click", () => openCart("orders"));
 $("#closeCart").addEventListener("click", closeCart);
 $("#overlay").addEventListener("click", closeCart);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeCart(); $("#okModal").hidden = true; } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeCart(); closeAuth(); $("#okModal").hidden = true; } });
 $("#checkout").addEventListener("click", checkout);
 $("#clearCart").addEventListener("click", () => { cart = []; commit(); });
 bindSeg("#delivery", (v) => { delivery = v; $("#addressField").hidden = v === "Retiro en local"; });
+$("#userBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (!user) return openAuth("login");
+  $("#userMenu").hidden = !$("#userMenu").hidden;
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".user-wrap")) $("#userMenu").hidden = true;
+  const um = e.target.closest("[data-um]");
+  if (um?.dataset.um === "orders") { $("#userMenu").hidden = true; openCart("orders"); }
+  if (um?.dataset.um === "logout") { $("#userMenu").hidden = true; signOut(auth); toast("Sesión cerrada"); }
+  if (e.target.closest("[data-open-auth]")) { closeCart(); openAuth("login"); }
+  const at = e.target.closest("[data-auth]");
+  if (at) openAuth(at.dataset.auth, pendingCheckout ? $("#authMsg").textContent : undefined);
+});
+$("#authForm").addEventListener("submit", submitAuth);
+$("#authClose").addEventListener("click", closeAuth);
+$("#forgotBtn").addEventListener("click", async () => {
+  const email = $("#authEmail").value.trim();
+  if (!email) { $("#authEmail").focus(); return authError("Escribe tu correo y vuelve a pulsar aquí."); }
+  try { await sendPasswordResetEmail(auth, email); toast("Te enviamos un correo para cambiar tu contraseña"); }
+  catch (err) { authError(AUTH_ERR[err.code] || "No se pudo enviar el correo."); }
+});
 $("#okClose").addEventListener("click", () => { $("#okModal").hidden = true; });
 $("#okTrack").addEventListener("click", () => { $("#okModal").hidden = true; openCart("orders"); });
 

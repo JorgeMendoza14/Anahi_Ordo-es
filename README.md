@@ -30,15 +30,19 @@ Sin Firebase configurado la tienda funciona en **modo demo** (los pedidos se env
    En la pestaña **Users → Agregar usuario**, crea tu cuenta de administrador.
 4. Menú **Compilación → Firestore Database → Crear base de datos** (modo producción).
 5. En Firestore → pestaña **Reglas**, borra lo que hay, pega el contenido de `firestore.rules` y **Publicar**.
-6. Dale el rol de administrador a tu cuenta:
-   - Abre `admin.html` e inicia sesión. Verás *"Sin permiso"* con tu **UID** → pulsa **Copiar mi UID**.
-   - En Firestore → **Iniciar colección** → ID: `usuarios`. ID del documento: *pega tu UID*.
-     Campo `rol` (string) = `admin` → Guardar.
-   - Vuelve al panel y pulsa **Ya lo hice, reintentar**.
+6. **Administrador:** el correo `kevin@gmail.com` es administrador automáticamente (no hay que crear nada
+   en Firestore). Para cambiarlo, edita `ADMIN_EMAILS` en `js/firebase-config.js` **y** `adminEmails()` en
+   `firestore.rules`, y vuelve a publicar las reglas (`npx firebase-tools deploy --only firestore:rules`).
+   También puedes hacer administrador a cualquier estudiante desde el panel → **Estudiantes** → clic en su rol.
 7. En el panel → **Ajustes**: pon el WhatsApp del local y pulsa **Cargar datos de ejemplo** si quieres empezar
    con productos.
 
-Para agregar otro administrador repite los pasos 3 y 6 con su cuenta.
+
+## Estudiantes
+
+Los estudiantes se registran desde la tienda (botón **Ingresar → Registrarme**) con nombre, teléfono, curso,
+correo y contraseña. Para confirmar un pedido hace falta iniciar sesión; así cada estudiante ve el estado de sus
+pedidos desde cualquier dispositivo, y solo los suyos.
 
 ## Ejecutar en tu computadora
 
@@ -63,7 +67,8 @@ Te dará una dirección como `https://tu-proyecto.web.app`.
 - `servicios`: nombre, descripcion, precio, unidad, emoji, activo, orden
 - `pedidos`: codigo, cliente {nombre, telefono}, entrega, direccion, notas, items, total, estado, creado
 - `config/tienda`: whatsapp, aviso, direccion, horario, precios del cotizador
-- `usuarios/{uid}`: rol = "admin"
+- `usuarios/{uid}`: rol ("estudiante" o "admin"), nombre, email, telefono, curso
+- `pedidos.uid`: el estudiante que hizo el pedido
 
 Estados de un pedido: `pendiente → aceptado → listo → entregado` (o `rechazado`).
 Al **aceptar** un pedido se descuenta el stock de los productos.

@@ -137,3 +137,10 @@ code { background: var(--g100); color: var(--g800); padding: 1px 6px; border-rad
   .view-head .btn { width: 100%; }
 }
 #itemSave { margin-left: auto; }
+
+@media (max-width: 860px) { .bottom-nav { grid-template-columns: repeat(5, 1fr); } }
+.urow { grid-template-columns: 44px 1fr 150px 90px 120px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--g100); color: var(--g800); display: grid; place-items: center; font-weight: 800; }
+.role-pill { font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: var(--g100); color: var(--g800); justify-self: start; }
+.role-pill.admin { background: var(--g700); color: var(--white); }
+@media (max-width: 860px) { .urow { grid-template-columns: 40px 1fr auto; } }

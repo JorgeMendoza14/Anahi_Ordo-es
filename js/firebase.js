@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getAuth, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { firebaseConfig } from "./firebase-config.js";
+import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js";
 
 // Para pruebas locales con el emulador de Firebase: abre la página con ?emulador
 let useEmu = false;
@@ -23,3 +23,7 @@ if (configured) {
   }
 }
 export { db, auth };
+
+// ¿Este correo es de un administrador? (lista en firebase-config.js)
+export const isAdminEmail = (email) =>
+  (ADMIN_EMAILS || []).map((e) => e.toLowerCase().trim()).includes(String(email || "").toLowerCase());

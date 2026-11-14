@@ -1,4 +1,4 @@
-import { db, auth, configured } from "./firebase.js";
+import { db, auth, configured, isAdminEmail } from "./firebase.js";
 import {
   signInWithEmailAndPassword, onAuthStateChanged, signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -13,7 +13,7 @@ const $ = (s) => document.querySelector(s);
 const screens = ["scLoading", "scNoConfig", "scLogin", "scDenied", "scPanel"];
 const show = (id) => screens.forEach((s) => ($("#" + s).hidden = s !== id));
 
-let orders = [], products = [], services = [], config = { ...DEFAULT_CONFIG };
+let orders = [], products = [], services = [], users = [], config = { ...DEFAULT_CONFIG };
 let orderFilter = "pendiente";
 let unsubs = [];
 let firstOrdersLoad = true;
@@ -28,21 +28,12 @@ if (!configured) {
     unsubs.forEach((u) => u()); unsubs = [];
     if (!user) return show("scLogin");
     show("scLoading");
+    const enter = () => { $("#userEmail").textContent = user.email; show("scPanel"); startPanel(); };
+    if (isAdminEmail(user.email)) return enter();
     try {
       const snap = await getDoc(doc(db, "usuarios", user.uid));
-      if (snap.exists() && snap.data().rol === "admin") {
-        $("#userEmail").textContent = user.email;
-        show("scPanel");
-        startPanel();
-      } else if (!snap.exists()) {
-        denied(user, `No existe el documento usuarios/${user.uid}. Revisa que el ID del documento sea exactamente tu UID y la colección se llame "usuarios".`);
-      } else {
-        const keys = Object.keys(snap.data());
-        const rol = snap.data().rol;
-        denied(user, rol === undefined
-          ? `El documento existe pero no tiene el campo "rol". Campos encontrados: ${keys.map((k) => `"${k}"`).join(", ") || "ninguno"}.`
-          : `El campo rol vale ${JSON.stringify(rol)}, pero debe ser exactamente admin (en minúsculas, sin comillas ni espacios).`);
-      }
+      if (snap.exists() && snap.data().rol === "admin") enter();
+      else denied(user, "");
     } catch (e) {
       console.error(e);
       denied(user, e.code === "permission-denied"
@@ -83,10 +74,7 @@ $("#loginForm").addEventListener("submit", async (e) => {
 });
 document.querySelectorAll("[data-logout]").forEach((b) => b.addEventListener("click", () => signOut(auth)));
 $("#deniedRetry").addEventListener("click", () => location.reload());
-$("#copyUid").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText($("#deniedUid").textContent); toast("UID copiado"); }
-  catch { toast("Selecciona y copia el UID manualmente"); }
-});
+
 
 // ===== Panel =====
 function startPanel() {
@@ -107,6 +95,11 @@ function startPanel() {
     services = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99));
     renderServices();
   }, err));
+  unsubs.push(onSnapshot(collection(db, "usuarios"), (snap) => {
+    users = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.creado?.toMillis?.() ?? 0) - (a.creado?.toMillis?.() ?? 0));
+    renderUsers();
+  }, err));
   unsubs.push(onSnapshot(doc(db, "config", "tienda"), (snap) => {
     config = { ...DEFAULT_CONFIG, ...(snap.data() || {}) };
     config.precios = { ...DEFAULT_CONFIG.precios, ...(snap.data()?.precios || {}) };
@@ -122,7 +115,7 @@ document.addEventListener("click", (e) => {
   if (!b) return;
   const v = b.dataset.view;
   document.querySelectorAll("[data-view]").forEach((x) => x.classList.toggle("on", x.dataset.view === v));
-  ["pedidos", "productos", "servicios", "ajustes"].forEach((n) =>
+  ["pedidos", "productos", "servicios", "estudiantes", "ajustes"].forEach((n) =>
     ($("#v" + n[0].toUpperCase() + n.slice(1)).hidden = n !== v));
   window.scrollTo(0, 0);
 });
@@ -154,6 +147,7 @@ function renderOrders() {
   const list = orders.filter((o) => orderFilter === "todos" || o.estado === orderFilter);
   $("#ordersGrid").innerHTML = list.length ? list.map(orderCard).join("")
     : `<div class="empty-box"><div>📭</div><p>No hay pedidos ${orderFilter === "todos" ? "" : ESTADOS[orderFilter].label.toLowerCase() + "s"}.</p></div>`;
+  if (users.length) renderUsers();
 }
 
 function orderCard(o) {
@@ -396,6 +390,41 @@ $("#itemDelete").addEventListener("click", async () => {
     toast("Eliminado");
     closeItem();
   } catch (e2) { err(e2); }
+});
+
+// ===== Estudiantes =====
+function renderUsers() {
+  const q = $("#userSearch").value.trim().toLowerCase();
+  const list = users.filter((u) => !q || [u.nombre, u.email, u.curso, u.telefono].some((x) => String(x || "").toLowerCase().includes(q)));
+  const nPedidos = (uid) => orders.filter((o) => o.uid === uid).length;
+  $("#usersTable").innerHTML = `<div class="trow urow head"><span></span><span>Estudiante</span><span>Teléfono</span><span>Pedidos</span><span>Rol</span></div>` +
+    (list.length ? list.map((u) => {
+      const ini = String(u.nombre || u.email || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+      const waNum = String(u.telefono || "").replace(/\D/g, "").replace(/^0/, "593");
+      const isMe = u.id === auth.currentUser?.uid;
+      return `
+      <div class="trow urow">
+        <div class="avatar">${esc(ini)}</div>
+        <div class="tname"><strong>${esc(u.nombre)}</strong><small>${esc(u.email)}${u.curso ? " · " + esc(u.curso) : ""}</small></div>
+        <span class="hide-m">${u.telefono ? `<a href="${esc(waLink(waNum, `Hola ${u.nombre}`))}" target="_blank" rel="noopener" class="tprice">${esc(u.telefono)}</a>` : "—"}</span>
+        <span class="hide-m">${nPedidos(u.id)}</span>
+        <span>${isMe ? `<span class="role-pill admin">admin</span>`
+          : `<button class="role-pill ${u.rol === "admin" ? "admin" : ""}" data-role="${esc(u.id)}" title="Cambiar rol">${u.rol === "admin" ? "admin ✓" : "estudiante"}</button>`}</span>
+      </div>`;
+    }).join("") : `<div class="empty-box">Todavía no hay estudiantes registrados.</div>`);
+}
+$("#userSearch").addEventListener("input", renderUsers);
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-role]");
+  if (!b) return;
+  const u = users.find((x) => x.id === b.dataset.role);
+  const nuevo = u.rol === "admin" ? "estudiante" : "admin";
+  const msg = nuevo === "admin"
+    ? `¿Dar acceso de ADMINISTRADOR a ${u.nombre}? Podrá ver todos los pedidos y cambiar productos.`
+    : `¿Quitar el acceso de administrador a ${u.nombre}?`;
+  if (!confirm(msg)) return;
+  try { await updateDoc(doc(db, "usuarios", u.id), { rol: nuevo }); toast(`${u.nombre} ahora es ${nuevo}`); }
+  catch (e2) { err(e2); }
 });
 
 // ===== Ajustes =====

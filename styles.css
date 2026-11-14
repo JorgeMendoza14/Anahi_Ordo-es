@@ -363,3 +363,23 @@ h2 { font-size: clamp(28px, 3.5vw, 40px); line-height: 1.15; margin: 6px 0 10px;
 .ok-card strong { color: var(--g700); }
 .btn:disabled { opacity: .6; cursor: wait; }
 @media (max-width: 420px) { .row2 { grid-template-columns: 1fr; } .tabs button { padding: 8px 10px; } }
+
+/* ---------- Cuentas de estudiantes ---------- */
+.user-wrap { position: relative; }
+.login-btn { height: 44px; padding: 0 14px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; font-weight: 800; background: var(--g600); color: var(--white); }
+.login-btn.logged { background: var(--g100); color: var(--g800); }
+.login-btn span { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-menu { position: absolute; right: 0; top: 52px; z-index: 35; width: 240px; background: var(--white); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 6px; display: grid; }
+.user-menu .um-head { padding: 10px 12px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.user-menu .um-head small { display: block; color: var(--muted); word-break: break-all; }
+.user-menu button, .user-menu a { text-align: left; padding: 10px 12px; border-radius: 10px; font-weight: 700; color: var(--g800); }
+.user-menu button:hover, .user-menu a:hover { background: var(--g50); }
+.auth-modal { display: grid; gap: 14px; }
+.auth-modal .modal-head { display: flex; justify-content: space-between; align-items: center; }
+.auth-msg { color: var(--muted); font-size: 14px; }
+.field em { font-weight: 600; color: var(--muted); font-style: normal; }
+.form-error { color: var(--g800); background: var(--g100); border-left: 4px solid var(--g700); padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+.auth-modal.is-login .reg-only, .auth-modal.is-register .login-only { display: none; }
+.cust-box { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 14px; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.cust-box small { display: block; color: var(--muted); }
+@media (max-width: 520px) { .login-btn span { display: none; } .login-btn { padding: 0 12px; } }

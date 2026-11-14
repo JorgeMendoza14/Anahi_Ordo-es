@@ -9,3 +9,7 @@ export const firebaseConfig = {
   appId: "1:764536483419:web:390d396bb28edcb351d97e",
   measurementId: "G-0QBFMRW5C8",
 };
+
+// Correos de los ADMINISTRADORES. Si cambias esta lista, cámbiala también en firestore.rules
+// (función isAdmin) y vuelve a publicar las reglas.
+export const ADMIN_EMAILS = ["kevin@gmail.com"];
