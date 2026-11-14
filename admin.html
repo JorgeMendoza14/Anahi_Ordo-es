@@ -45,7 +45,8 @@
       <span class="brand-mark">!</span>
       <h1>Sin permiso de administrador</h1>
       <p>Tu cuenta <strong id="deniedEmail"></strong> no tiene el rol <b>admin</b>.</p>
-      <p class="small">Para darle permiso, en Firestore crea el documento <code>usuarios/<span id="deniedUid"></span></code> con el campo <code>rol</code> = <code>"admin"</code>.</p>
+      <p class="form-error" id="deniedWhy" hidden></p>
+      <p class="small">Para darle permiso, en Firestore crea la colección <code>usuarios</code>, un documento con ID <code id="deniedUid"></code> y el campo <code>rol</code> (tipo string) con el valor <code>admin</code> (sin comillas).</p>
       <button class="btn btn-ghost btn-block" id="copyUid">Copiar mi UID</button>
       <button class="btn btn-primary btn-block" id="deniedRetry">Ya lo hice, reintentar</button>
       <button class="link-btn" data-logout>Cerrar sesión</button>

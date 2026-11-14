@@ -34,18 +34,30 @@ if (!configured) {
         $("#userEmail").textContent = user.email;
         show("scPanel");
         startPanel();
+      } else if (!snap.exists()) {
+        denied(user, `No existe el documento usuarios/${user.uid}. Revisa que el ID del documento sea exactamente tu UID y la colección se llame "usuarios".`);
       } else {
-        $("#deniedEmail").textContent = user.email;
-        $("#deniedUid").textContent = user.uid;
-        show("scDenied");
+        const keys = Object.keys(snap.data());
+        const rol = snap.data().rol;
+        denied(user, rol === undefined
+          ? `El documento existe pero no tiene el campo "rol". Campos encontrados: ${keys.map((k) => `"${k}"`).join(", ") || "ninguno"}.`
+          : `El campo rol vale ${JSON.stringify(rol)}, pero debe ser exactamente admin (en minúsculas, sin comillas ni espacios).`);
       }
     } catch (e) {
       console.error(e);
-      $("#deniedEmail").textContent = user.email;
-      $("#deniedUid").textContent = user.uid;
-      show("scDenied");
+      denied(user, e.code === "permission-denied"
+        ? "Firestore bloqueó la lectura: revisa que las reglas de firestore.rules estén publicadas."
+        : `Error al leer tu rol: ${e.code || e.message}`);
     }
   });
+}
+
+function denied(user, why) {
+  $("#deniedEmail").textContent = user.email;
+  $("#deniedUid").textContent = user.uid;
+  $("#deniedWhy").textContent = why;
+  $("#deniedWhy").hidden = !why;
+  show("scDenied");
 }
 
 $("#loginForm").addEventListener("submit", async (e) => {
