@@ -93,7 +93,13 @@ function onUser(u) {
       try {
         await setDoc(ref, { rol: "estudiante", nombre: u.displayName || u.email.split("@")[0], email: u.email,
           telefono: "", curso: "", creado: serverTimestamp() });
-      } catch (e) { console.error(e); gateError("No se pudo crear tu perfil (" + (e.code || e.message) + ")."); }
+      } catch (e) {
+        console.error(e);
+        $("#gateLoading").hidden = true;
+        gateError(e.code === "permission-denied"
+          ? "Firebase no dejó crear tu perfil: publica las reglas nuevas (npx firebase-tools deploy --only firestore:rules)."
+          : "No se pudo crear tu perfil (" + (e.code || e.message) + ").");
+      }
       return;
     }
     perfil = snap.data();
