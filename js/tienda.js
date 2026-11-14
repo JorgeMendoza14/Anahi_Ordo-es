@@ -1,4 +1,4 @@
-import { db, auth, configured } from "./firebase.js";
+import { db, auth, configured } from "./firebase.js?v=20261114b";
 import {
   collection, doc, onSnapshot, addDoc, setDoc, query, where, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -6,8 +6,8 @@ import {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   sendPasswordResetEmail, signOut, updateProfile,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { DEFAULT_CONFIG, DEMO_PRODUCTS, DEMO_SERVICES } from "./data.js";
-import { money, esc, toast, waLink, fecha, codigoPedido, thumb, ESTADOS } from "./util.js";
+import { DEFAULT_CONFIG, DEMO_PRODUCTS, DEMO_SERVICES } from "./data.js?v=20261114b";
+import { money, esc, toast, waLink, fecha, codigoPedido, thumb, ESTADOS } from "./util.js?v=20261114b";
 
 const $ = (s) => document.querySelector(s);
 

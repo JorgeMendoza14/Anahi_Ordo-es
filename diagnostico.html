@@ -42,7 +42,7 @@
     try {
       const [app, au, fs, cfg] = await Promise.all([
         import(V + "firebase-app.js"), import(V + "firebase-auth.js"), import(V + "firebase-firestore.js"),
-        import("./js/firebase-config.js"),
+        import("./js/firebase-config.js?v=20261114b"),
       ]);
       mods = { app, au, fs, cfg };
       log.innerHTML = "";

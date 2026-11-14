@@ -1,4 +1,4 @@
-import { db, auth, configured } from "./firebase.js";
+import { db, auth, configured } from "./firebase.js?v=20261114b";
 import {
   onAuthStateChanged, signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -6,8 +6,8 @@ import {
   collection, doc, getDoc, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc,
   writeBatch, increment, serverTimestamp, query, orderBy, limit,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { DEFAULT_CONFIG, DEMO_PRODUCTS, DEMO_SERVICES } from "./data.js";
-import { money, esc, toast, waLink, fecha, thumb, ESTADOS } from "./util.js";
+import { DEFAULT_CONFIG, DEMO_PRODUCTS, DEMO_SERVICES } from "./data.js?v=20261114b";
+import { money, esc, toast, waLink, fecha, thumb, ESTADOS } from "./util.js?v=20261114b";
 
 const $ = (s) => document.querySelector(s);
 const screens = ["scLoading", "scNoConfig", "scDenied", "scPanel"];
