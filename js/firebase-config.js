@@ -10,6 +10,7 @@ export const firebaseConfig = {
   measurementId: "G-0QBFMRW5C8",
 };
 
-// Correos de los ADMINISTRADORES. Si cambias esta lista, cámbiala también en firestore.rules
-// (función isAdmin) y vuelve a publicar las reglas.
-export const ADMIN_EMAILS = ["kevin@gmail.com"];
+
+// ROLES: cada cuenta tiene un documento en Firestore  usuarios/{uid}  con el campo  rol.
+// Al registrarse queda como "estudiante". Para hacer a alguien administrador, en la consola
+// de Firebase → Firestore → usuarios → (su documento) cambia rol a: admin

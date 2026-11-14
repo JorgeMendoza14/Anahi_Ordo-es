@@ -383,3 +383,35 @@ h2 { font-size: clamp(28px, 3.5vw, 40px); line-height: 1.15; margin: 6px 0 10px;
 .cust-box { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 14px; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
 .cust-box small { display: block; color: var(--muted); }
 @media (max-width: 520px) { .login-btn span { display: none; } .login-btn { padding: 0 12px; } }
+
+/* ---------- Pantalla de inicio (login / registro) ---------- */
+body.locked { overflow: hidden; }
+.gate { position: fixed; inset: 0; z-index: 90; background: var(--white); display: grid; grid-template-columns: 1fr 1fr; overflow-y: auto; }
+.gate-art {
+  background: radial-gradient(circle at 80% 15%, var(--g500) 0, transparent 45%), var(--g700);
+  color: var(--white); padding: 48px; display: flex; flex-direction: column; justify-content: center; gap: 24px;
+}
+.gate-art h2 { font-size: clamp(30px, 3.6vw, 46px); line-height: 1.1; max-width: 460px; }
+.gate-art h2 span { color: var(--g200); }
+.gate-brand { display: flex; align-items: center; gap: 12px; font-size: 13px; line-height: 1.15; }
+.gate-brand strong { font-size: 17px; }
+.gate-art .brand-mark { background: var(--white); color: var(--g700); box-shadow: inset 0 -4px 0 var(--g200); }
+.checks.light li { color: var(--white); }
+.checks.light li::before { background: var(--white); color: var(--g700); }
+.gate-form { display: grid; place-items: center; padding: 32px 16px; position: relative; }
+.auth-card-store { width: min(420px, 100%); display: grid; gap: 14px; }
+.auth-card-store .tabs { justify-self: start; }
+.auth-card-store.is-login .reg-only, .auth-card-store.is-register .login-only { display: none; }
+.mobile-only { display: none; }
+.gate-loading { position: absolute; inset: 0; background: var(--white); display: grid; place-content: center; justify-items: center; gap: 12px; color: var(--muted); font-weight: 700; }
+.spinner { width: 42px; height: 42px; border-radius: 50%; border: 4px solid var(--g200); border-top-color: var(--g600); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.role-tag { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; padding: 2px 8px; border-radius: 999px; background: var(--g100); color: var(--g800); }
+.role-tag:empty { display: none; }
+@media (max-width: 860px) {
+  .gate { grid-template-columns: 1fr; }
+  .gate-art { display: none; }
+  .mobile-only { display: flex; margin-bottom: 8px; }
+  .mobile-only .brand-mark { width: 48px; height: 48px; font-size: 24px; }
+  .gate-form { align-items: start; padding-top: 48px; }
+}

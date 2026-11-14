@@ -1,6 +1,6 @@
-import { db, auth, configured, isAdminEmail } from "./firebase.js";
+import { db, auth, configured } from "./firebase.js";
 import {
-  collection, doc, onSnapshot, addDoc, setDoc, getDoc, query, where, serverTimestamp,
+  collection, doc, onSnapshot, addDoc, setDoc, query, where, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
@@ -20,7 +20,6 @@ let user = null;       // usuario de Firebase Auth
 let perfil = null;     // documento usuarios/{uid}
 let myOrders = [];     // pedidos del estudiante (en vivo)
 let ordersUnsub = null;
-let pendingCheckout = false;
 let registering = false;
 let filter = { cat: "Todos", q: "" };
 let delivery = "Retiro en local";
@@ -29,58 +28,90 @@ function read(k, def) { try { return JSON.parse(localStorage.getItem(k)) ?? def;
 function write(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 
 // ===== Fuente de datos =====
+let dataUnsubs = [];
 function startData() {
   if (!configured) {
+    // Modo demo: sin Firebase no hay cuentas, se muestra la tienda directamente
     $("#demoBanner").hidden = false;
+    $("#gate").hidden = true;
+    document.body.classList.remove("locked");
     products = DEMO_PRODUCTS.map((p, i) => ({ id: "demo-p" + i, ...p }));
     services = DEMO_SERVICES.map((s, i) => ({ id: "demo-s" + i, ...s }));
     renderAll();
     return;
   }
-  onSnapshot(doc(db, "config", "tienda"), (snap) => {
-    config = { ...DEFAULT_CONFIG, ...(snap.data() || {}) };
-    config.precios = { ...DEFAULT_CONFIG.precios, ...(snap.data()?.precios || {}) };
-    renderConfig(); calcQuote();
-  }, (e) => console.error(e));
-  onSnapshot(collection(db, "productos"), (snap) => {
-    products = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => p.activo !== false)
-      .sort((a, b) => (a.categoria || "").localeCompare(b.categoria || "") || (a.nombre || "").localeCompare(b.nombre || ""));
-    syncCart(); renderChips(); renderProducts();
-  }, (e) => console.error(e));
-  onSnapshot(collection(db, "servicios"), (snap) => {
-    services = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((s) => s.activo !== false)
-      .sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99));
-    syncCart(); renderServices();
-  }, (e) => console.error(e));
-  $("#userBtn").hidden = false;
   onAuthStateChanged(auth, onUser);
 }
 
-// ===== Cuentas de estudiantes =====
-async function onUser(u) {
-  user = u;
-  if (ordersUnsub) { ordersUnsub(); ordersUnsub = null; }
-  myOrders = []; perfil = null;
-  if (u) {
-    if (!registering) await loadProfile();
-    watchMyOrders();
-  }
-  renderUser(); renderOrders();
+// Catálogo en vivo (solo para usuarios con sesión)
+function startCatalog() {
+  if (dataUnsubs.length) return;
+  dataUnsubs.push(onSnapshot(doc(db, "config", "tienda"), (snap) => {
+    config = { ...DEFAULT_CONFIG, ...(snap.data() || {}) };
+    config.precios = { ...DEFAULT_CONFIG.precios, ...(snap.data()?.precios || {}) };
+    renderConfig(); calcQuote();
+  }, (e) => console.error(e)));
+  dataUnsubs.push(onSnapshot(collection(db, "productos"), (snap) => {
+    products = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => p.activo !== false)
+      .sort((a, b) => (a.categoria || "").localeCompare(b.categoria || "") || (a.nombre || "").localeCompare(b.nombre || ""));
+    syncCart(); renderChips(); renderProducts();
+  }, (e) => console.error(e)));
+  dataUnsubs.push(onSnapshot(collection(db, "servicios"), (snap) => {
+    services = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((s) => s.activo !== false)
+      .sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99));
+    syncCart(); renderServices();
+  }, (e) => console.error(e)));
+  watchMyOrders();
+}
+function stopAll() {
+  [...dataUnsubs, ordersUnsub, profileUnsub].forEach((u) => u && u());
+  dataUnsubs = []; ordersUnsub = null; profileUnsub = null;
+  myOrders = []; perfil = null; products = []; services = [];
 }
 
-async function loadProfile() {
-  try {
-    const ref = doc(db, "usuarios", user.uid);
-    const snap = await getDoc(ref);
-    if (snap.exists()) perfil = snap.data();
-    else {
-      perfil = { rol: "estudiante", nombre: user.displayName || user.email.split("@")[0], email: user.email, telefono: "", curso: "" };
-      if (!isAdminEmail(user.email)) await setDoc(ref, { ...perfil, creado: serverTimestamp() });
+// ===== Sesión y rol =====
+// El rol se lee de Firestore: usuarios/{uid}.rol  ("estudiante" o "admin")
+let profileUnsub = null;
+const params = new URLSearchParams(location.search);
+
+function showGate(on) {
+  $("#gate").hidden = !on;
+  document.body.classList.toggle("locked", on);
+}
+
+function onUser(u) {
+  stopAll();
+  user = u;
+  renderUser();
+  if (!u) { $("#gateLoading").hidden = true; showGate(true); setMode("login"); return; }
+  $("#gateLoading").hidden = false;
+  const ref = doc(db, "usuarios", u.uid);
+  profileUnsub = onSnapshot(ref, async (snap) => {
+    if (!snap.exists()) {
+      if (registering) return; // el registro está creando el documento
+      // Cuenta sin perfil (p. ej. creada desde la consola): se crea como estudiante
+      try {
+        await setDoc(ref, { rol: "estudiante", nombre: u.displayName || u.email.split("@")[0], email: u.email,
+          telefono: "", curso: "", creado: serverTimestamp() });
+      } catch (e) { console.error(e); gateError("No se pudo crear tu perfil (" + (e.code || e.message) + ")."); }
+      return;
     }
-  } catch (e) { console.error(e); perfil = { nombre: user.displayName || user.email, email: user.email }; }
-  // Rellena los datos del pedido con los del perfil
-  if (perfil.nombre && !$("#custName").value) $("#custName").value = perfil.nombre;
-  if (perfil.telefono && !$("#custPhone").value) $("#custPhone").value = perfil.telefono;
+    perfil = snap.data();
+    const rol = String(perfil.rol || "").trim().toLowerCase();
+    if (rol === "admin" && !params.has("tienda")) { location.replace("admin.html"); return; }
+    showGate(false);
+    $("#gateLoading").hidden = true;
+    if (perfil.nombre && !$("#custName").value) $("#custName").value = perfil.nombre;
+    if (perfil.telefono && !$("#custPhone").value) $("#custPhone").value = perfil.telefono;
+    renderUser();
+    startCatalog();
+  }, (e) => {
+    console.error(e);
+    $("#gateLoading").hidden = true;
+    gateError(e.code === "permission-denied"
+      ? "Firebase bloqueó el acceso. Publica las reglas de firestore.rules."
+      : "Error al cargar tu cuenta (" + (e.code || e.message) + ").");
+  });
 }
 
 function watchMyOrders() {
@@ -99,30 +130,29 @@ function watchMyOrders() {
 }
 
 function renderUser() {
-  const b = $("#userBtn");
-  b.classList.toggle("logged", !!user);
-  $("#userLabel").textContent = user ? (perfil?.nombre || user.email).split(" ")[0] : "Ingresar";
+  $("#userBtn").hidden = !user;
+  $("#userLabel").textContent = (perfil?.nombre || user?.email || "").split(" ")[0];
   $("#umName").textContent = perfil?.nombre || "";
   $("#umEmail").textContent = user?.email || "";
-  $("#umAdmin").hidden = !(user && (isAdminEmail(user.email) || perfil?.rol === "admin"));
+  $("#umRol").textContent = perfil?.rol || "";
+  $("#umAdmin").hidden = String(perfil?.rol || "").trim().toLowerCase() !== "admin";
   if (!user) $("#userMenu").hidden = true;
 }
 
+// ===== Pantalla de ingreso / registro =====
 let authMode = "login";
-function openAuth(mode = "login", msg) {
+function setMode(mode) {
   authMode = mode;
   $("#authForm").classList.toggle("is-login", mode === "login");
   $("#authForm").classList.toggle("is-register", mode === "register");
   document.querySelectorAll("[data-auth]").forEach((b) => b.classList.toggle("on", b.dataset.auth === mode));
   $("#authSubmit").textContent = mode === "login" ? "Ingresar" : "Crear mi cuenta";
   $("#authPass").autocomplete = mode === "login" ? "current-password" : "new-password";
-  $("#authMsg").textContent = msg || (mode === "login" ? "Ingresa con tu cuenta de estudiante." : "Crea tu cuenta gratis para hacer pedidos y ver su estado.");
+  $("#authMsg").textContent = mode === "login" ? "Ingresa con tu cuenta para continuar." : "Crea tu cuenta gratis. Solo toma un minuto.";
   $("#authError").hidden = true;
-  $("#authModal").hidden = false;
-  setTimeout(() => (mode === "register" ? $("#regName") : $("#authEmail")).focus(), 50);
 }
-function closeAuth() { $("#authModal").hidden = true; pendingCheckout = false; }
-function authError(msg) { $("#authError").textContent = msg; $("#authError").hidden = false; }
+function gateError(msg) { showGate(true); $("#authError").textContent = msg; $("#authError").hidden = false; }
+const authError = gateError;
 
 const AUTH_ERR = {
   "auth/invalid-credential": "Correo o contraseña incorrectos.",
@@ -143,6 +173,7 @@ async function submitAuth(e) {
   if (!email || !pass) return authError("Escribe tu correo y contraseña.");
   const btn = $("#authSubmit");
   btn.disabled = true;
+  $("#authError").hidden = true;
   try {
     if (authMode === "login") {
       await signInWithEmailAndPassword(auth, email, pass);
@@ -154,17 +185,13 @@ async function submitAuth(e) {
       registering = true;
       const cred = await createUserWithEmailAndPassword(auth, email, pass);
       await updateProfile(cred.user, { displayName: nombre });
-      perfil = { rol: "estudiante", nombre, telefono, email: cred.user.email, curso: $("#regCourse").value.trim() };
-      if (!isAdminEmail(email)) await setDoc(doc(db, "usuarios", cred.user.uid), { ...perfil, creado: serverTimestamp() });
-      registering = false;
       $("#custName").value = nombre; $("#custPhone").value = telefono;
-      renderUser();
+      await setDoc(doc(db, "usuarios", cred.user.uid), { rol: "estudiante", nombre, telefono, email: cred.user.email,
+        curso: $("#regCourse").value.trim(), creado: serverTimestamp() });
+      registering = false;
+      toast("¡Cuenta creada! Bienvenido/a");
     }
-    const cont = pendingCheckout;
-    $("#authModal").hidden = true; pendingCheckout = false;
     $("#authPass").value = "";
-    toast(authMode === "login" ? "¡Hola de nuevo!" : "¡Cuenta creada! Bienvenido/a");
-    if (cont) openCart("cart");
   } catch (err) {
     registering = false;
     console.error(err);
@@ -268,10 +295,6 @@ function renderCart() {
 
 function renderOrders() {
   $("#ordersCount").textContent = myOrders.filter((o) => !["entregado", "rechazado"].includes(o.estado)).length || "";
-  if (configured && !user) {
-    $("#ordersList").innerHTML = `<div class="cart-empty"><div>🔐</div><p>Ingresa a tu cuenta para ver tus pedidos.</p><button class="btn btn-primary" data-open-auth>Ingresar</button></div>`;
-    return;
-  }
   $("#ordersList").innerHTML = myOrders.length ? myOrders.map((o) => {
     const e = ESTADOS[o.estado] || ESTADOS.pendiente;
     const steps = ["pendiente", "aceptado", "listo", "entregado"];
@@ -387,11 +410,6 @@ function orderText(o) {
 
 async function checkout() {
   if (!cart.length) return toast("Agrega algo a tu pedido primero");
-  if (configured && !user) {
-    pendingCheckout = true;
-    closeCart();
-    return openAuth("register", "Crea tu cuenta (o ingresa) para enviar tu pedido. Solo toma un minuto.");
-  }
   const nombre = $("#custName").value.trim();
   const telefono = $("#custPhone").value.trim();
   const direccion = $("#custAddress").value.trim();
@@ -455,26 +473,24 @@ $("#openCart").addEventListener("click", () => openCart("cart"));
 $("#openOrders").addEventListener("click", () => openCart("orders"));
 $("#closeCart").addEventListener("click", closeCart);
 $("#overlay").addEventListener("click", closeCart);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeCart(); closeAuth(); $("#okModal").hidden = true; } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeCart(); $("#okModal").hidden = true; } });
 $("#checkout").addEventListener("click", checkout);
 $("#clearCart").addEventListener("click", () => { cart = []; commit(); });
 bindSeg("#delivery", (v) => { delivery = v; $("#addressField").hidden = v === "Retiro en local"; });
 $("#userBtn").addEventListener("click", (e) => {
   e.stopPropagation();
-  if (!user) return openAuth("login");
+  if (!user) return;
   $("#userMenu").hidden = !$("#userMenu").hidden;
 });
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".user-wrap")) $("#userMenu").hidden = true;
   const um = e.target.closest("[data-um]");
   if (um?.dataset.um === "orders") { $("#userMenu").hidden = true; openCart("orders"); }
-  if (um?.dataset.um === "logout") { $("#userMenu").hidden = true; signOut(auth); toast("Sesión cerrada"); }
-  if (e.target.closest("[data-open-auth]")) { closeCart(); openAuth("login"); }
+  if (um?.dataset.um === "logout") { $("#userMenu").hidden = true; cart = []; commit(); signOut(auth); }
   const at = e.target.closest("[data-auth]");
-  if (at) openAuth(at.dataset.auth, pendingCheckout ? $("#authMsg").textContent : undefined);
+  if (at) setMode(at.dataset.auth);
 });
 $("#authForm").addEventListener("submit", submitAuth);
-$("#authClose").addEventListener("click", closeAuth);
 $("#forgotBtn").addEventListener("click", async () => {
   const email = $("#authEmail").value.trim();
   if (!email) { $("#authEmail").focus(); return authError("Escribe tu correo y vuelve a pulsar aquí."); }

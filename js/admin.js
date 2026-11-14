@@ -1,6 +1,6 @@
-import { db, auth, configured, isAdminEmail } from "./firebase.js";
+import { db, auth, configured } from "./firebase.js";
 import {
-  signInWithEmailAndPassword, onAuthStateChanged, signOut,
+  onAuthStateChanged, signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   collection, doc, getDoc, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc,
@@ -10,7 +10,7 @@ import { DEFAULT_CONFIG, DEMO_PRODUCTS, DEMO_SERVICES } from "./data.js";
 import { money, esc, toast, waLink, fecha, thumb, ESTADOS } from "./util.js";
 
 const $ = (s) => document.querySelector(s);
-const screens = ["scLoading", "scNoConfig", "scLogin", "scDenied", "scPanel"];
+const screens = ["scLoading", "scNoConfig", "scDenied", "scPanel"];
 const show = (id) => screens.forEach((s) => ($("#" + s).hidden = s !== id));
 
 let orders = [], products = [], services = [], users = [], config = { ...DEFAULT_CONFIG };
@@ -21,59 +21,42 @@ let sound = true;
 try { sound = localStorage.getItem("mea-sound") !== "0"; } catch {}
 
 // ===== Autenticación y rol =====
+// Se entra desde la pantalla de inicio (index.html). El rol se lee de Firestore: usuarios/{uid}.rol
+let profileUnsub = null;
+let started = false;
 if (!configured) {
   show("scNoConfig");
 } else {
-  onAuthStateChanged(auth, async (user) => {
-    unsubs.forEach((u) => u()); unsubs = [];
-    if (!user) return show("scLogin");
-    show("scLoading");
-    const enter = () => { $("#userEmail").textContent = user.email; show("scPanel"); startPanel(); };
-    if (isAdminEmail(user.email)) return enter();
-    try {
-      const snap = await getDoc(doc(db, "usuarios", user.uid));
-      if (snap.exists() && snap.data().rol === "admin") enter();
-      else denied(user, "");
-    } catch (e) {
+  onAuthStateChanged(auth, (user) => {
+    if (!user) return location.replace("index.html");
+    profileUnsub = onSnapshot(doc(db, "usuarios", user.uid), (snap) => {
+      const rol = String(snap.data()?.rol || "").trim().toLowerCase();
+      if (rol === "admin") {
+        $("#userEmail").textContent = (snap.data().nombre ? snap.data().nombre + " · " : "") + user.email;
+        show("scPanel");
+        if (!started) { started = true; startPanel(); }
+      } else {
+        // Le quitaron el rol (o nunca lo tuvo): se detiene todo y vuelve a la tienda
+        unsubs.forEach((u) => u()); unsubs = []; started = false;
+        $("#deniedEmail").textContent = user.email;
+        show("scDenied");
+      }
+    }, (e) => {
       console.error(e);
-      denied(user, e.code === "permission-denied"
-        ? "Firestore bloqueó la lectura: revisa que las reglas de firestore.rules estén publicadas."
-        : `Error al leer tu rol: ${e.code || e.message}`);
-    }
+      $("#deniedEmail").textContent = user.email;
+      $("#deniedWhy").textContent = "Firebase bloqueó la lectura de tu rol: publica las reglas de firestore.rules.";
+      $("#deniedWhy").hidden = false;
+      show("scDenied");
+    });
   });
 }
 
-function denied(user, why) {
-  $("#deniedEmail").textContent = user.email;
-  $("#deniedUid").textContent = user.uid;
-  $("#deniedWhy").textContent = why;
-  $("#deniedWhy").hidden = !why;
-  show("scDenied");
-}
+document.querySelectorAll("[data-logout]").forEach((b) => b.addEventListener("click", async () => {
+  unsubs.forEach((u) => u()); unsubs = [];
+  if (profileUnsub) profileUnsub();
+  await signOut(auth);
+}));
 
-$("#loginForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const btn = $("#loginBtn");
-  $("#loginError").hidden = true;
-  btn.disabled = true; btn.textContent = "Ingresando…";
-  try {
-    await signInWithEmailAndPassword(auth, $("#loginEmail").value.trim(), $("#loginPass").value);
-  } catch (err) {
-    const m = {
-      "auth/invalid-credential": "Correo o contraseña incorrectos.",
-      "auth/wrong-password": "Correo o contraseña incorrectos.",
-      "auth/user-not-found": "Correo o contraseña incorrectos.",
-      "auth/too-many-requests": "Demasiados intentos. Espera unos minutos.",
-      "auth/network-request-failed": "Sin conexión a internet.",
-    };
-    $("#loginError").textContent = m[err.code] || "No se pudo ingresar (" + err.code + ").";
-    $("#loginError").hidden = false;
-  } finally {
-    btn.disabled = false; btn.textContent = "Ingresar";
-  }
-});
-document.querySelectorAll("[data-logout]").forEach((b) => b.addEventListener("click", () => signOut(auth)));
-$("#deniedRetry").addEventListener("click", () => location.reload());
 
 
 // ===== Panel =====

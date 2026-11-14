@@ -9,7 +9,41 @@
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="locked">
+  <!-- PANTALLA DE INICIO: ingresar / registrarse -->
+  <div class="gate" id="gate">
+    <div class="gate-art" aria-hidden="true">
+      <div class="gate-brand"><span class="brand-mark">A</span><span>Multiservicio<br><strong>Escolar Anahí</strong></span></div>
+      <h2>Copias, impresiones y útiles <span>en un solo lugar.</span></h2>
+      <ul class="checks light">
+        <li>Haz tus pedidos desde el celular</li>
+        <li>Mira el estado de tu pedido en vivo</li>
+        <li>Retíralo listo o recíbelo en casa</li>
+      </ul>
+    </div>
+    <div class="gate-form">
+      <form class="auth-card-store is-login" id="authForm" novalidate>
+        <div class="gate-brand mobile-only"><span class="brand-mark">A</span><span>Multiservicio<br><strong>Escolar Anahí</strong></span></div>
+        <div class="tabs" id="authTabs">
+          <button type="button" data-auth="login" class="on">Ingresar</button>
+          <button type="button" data-auth="register">Registrarme</button>
+        </div>
+        <p class="auth-msg" id="authMsg">Ingresa con tu cuenta para continuar.</p>
+        <div class="reg-only row2">
+          <label class="field"><span>Nombre completo</span><input id="regName" autocomplete="name" maxlength="80"></label>
+          <label class="field"><span>Teléfono</span><input id="regPhone" type="tel" autocomplete="tel" placeholder="0991234567"></label>
+        </div>
+        <label class="field reg-only"><span>Curso / escuela <em>(opcional)</em></span><input id="regCourse" maxlength="60" placeholder="Ej. 8vo B · U.E. Central"></label>
+        <label class="field"><span>Correo</span><input id="authEmail" type="email" autocomplete="email"></label>
+        <label class="field"><span>Contraseña</span><input id="authPass" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres"></label>
+        <p class="form-error" id="authError" hidden></p>
+        <button class="btn btn-primary btn-block" id="authSubmit">Ingresar</button>
+        <button type="button" class="link-btn login-only" id="forgotBtn">¿Olvidaste tu contraseña?</button>
+      </form>
+      <div class="gate-loading" id="gateLoading"><div class="spinner"></div><p>Cargando…</p></div>
+    </div>
+  </div>
+
   <div class="demo-banner" id="demoBanner" hidden>Modo demo: conecta Firebase en <code>js/firebase-config.js</code> para guardar pedidos.</div>
   <header class="topbar">
     <div class="wrap topbar-inner">
@@ -25,12 +59,12 @@
       </nav>
       <div class="topbar-actions">
         <div class="user-wrap">
-          <button class="login-btn" id="userBtn" hidden>
+          <button class="login-btn logged" id="userBtn" hidden>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
-            <span id="userLabel">Ingresar</span>
+            <span id="userLabel"></span>
           </button>
           <div class="user-menu" id="userMenu" hidden>
-            <div class="um-head"><strong id="umName"></strong><small id="umEmail"></small></div>
+            <div class="um-head"><strong id="umName"></strong><small id="umEmail"></small><span class="role-tag" id="umRol"></span></div>
             <button data-um="orders">📋 Mis pedidos</button>
             <a href="admin.html" id="umAdmin" hidden>⚙️ Panel administrador</a>
             <button data-um="logout">↩ Cerrar sesión</button>
@@ -191,7 +225,7 @@
   </main>
 
   <footer class="footer">
-    <div class="wrap">© <span id="year"></span> Multiservicio Escolar Anahí · Hecho con 💚 · <a href="admin.html" class="admin-link">Administración</a></div>
+    <div class="wrap">© <span id="year"></span> Multiservicio Escolar Anahí · Hecho con 💚</div>
   </footer>
 
   <!-- CARRITO -->
@@ -232,29 +266,6 @@
       <div class="drawer-body" id="ordersList"></div>
     </div>
   </aside>
-
-  <div class="modal" id="authModal" hidden>
-    <form class="modal-card auth-modal" id="authForm" novalidate>
-      <div class="modal-head">
-        <div class="tabs" id="authTabs">
-          <button type="button" data-auth="login" class="on">Ingresar</button>
-          <button type="button" data-auth="register">Registrarme</button>
-        </div>
-        <button type="button" class="icon-btn" id="authClose" aria-label="Cerrar">✕</button>
-      </div>
-      <p class="auth-msg" id="authMsg">Ingresa para enviar tu pedido y ver su estado.</p>
-      <div class="reg-only row2">
-        <label class="field"><span>Nombre completo</span><input id="regName" autocomplete="name" maxlength="80"></label>
-        <label class="field"><span>Teléfono</span><input id="regPhone" type="tel" autocomplete="tel" placeholder="0991234567"></label>
-      </div>
-      <label class="field reg-only"><span>Curso / escuela <em>(opcional)</em></span><input id="regCourse" maxlength="60" placeholder="Ej. 8vo B · U.E. Central"></label>
-      <label class="field"><span>Correo</span><input id="authEmail" type="email" autocomplete="email"></label>
-      <label class="field"><span>Contraseña</span><input id="authPass" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres"></label>
-      <p class="form-error" id="authError" hidden></p>
-      <button class="btn btn-primary btn-block" id="authSubmit">Ingresar</button>
-      <button type="button" class="link-btn login-only" id="forgotBtn">¿Olvidaste tu contraseña?</button>
-    </form>
-  </div>
 
   <div class="modal" id="okModal" hidden>
     <div class="modal-card ok-card">

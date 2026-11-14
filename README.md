@@ -30,25 +30,25 @@ Sin Firebase configurado la tienda funciona en **modo demo** (los pedidos se env
    En la pestaña **Users → Agregar usuario**, crea tu cuenta de administrador.
 4. Menú **Compilación → Firestore Database → Crear base de datos** (modo producción).
 5. En Firestore → pestaña **Reglas**, borra lo que hay, pega el contenido de `firestore.rules` y **Publicar**.
-6. **Administrador:** el correo `kevin@gmail.com` es administrador automáticamente (no hay que crear nada
-   en Firestore). Para cambiarlo, edita `ADMIN_EMAILS` en `js/firebase-config.js` **y** `adminEmails()` en
-   `firestore.rules`, y vuelve a publicar las reglas (`npx firebase-tools deploy --only firestore:rules`).
-   También puedes hacer administrador a cualquier estudiante desde el panel → **Estudiantes** → clic en su rol.
+6. **Administrador:** abre la app, regístrate (o ingresa) con tu cuenta. Toda cuenta nueva es `estudiante`.
+   En la consola → Firestore → colección `usuarios` → tu documento → cambia el campo `rol` a `admin`.
+   La app te pasa al panel automáticamente.
 7. En el panel → **Ajustes**: pon el WhatsApp del local y pulsa **Cargar datos de ejemplo** si quieres empezar
    con productos.
 
 
-## Estudiantes
+## Flujo de la app y roles
 
-Los estudiantes se registran desde la tienda (botón **Ingresar → Registrarme**) con nombre, teléfono, curso,
-correo y contraseña. Para confirmar un pedido hace falta iniciar sesión; así cada estudiante ve el estado de sus
-pedidos desde cualquier dispositivo, y solo los suyos.
+1. Al abrir la app lo primero es **Ingresar / Registrarme**. Sin cuenta no se ve nada.
+2. Toda cuenta nueva queda con `rol: "estudiante"` → entra a la tienda, hace pedidos y ve solo los suyos.
+3. Si en Firestore (`usuarios/{uid}`) cambias `rol` a `admin`, esa persona entra al **panel administrador**.
+   El cambio se aplica al instante, incluso con la app abierta. También se puede cambiar desde el panel → **Estudiantes**.
 
 ## Ejecutar en tu computadora
 
 Los archivos usan módulos de JavaScript, así que **no funcionan con doble clic**: hay que abrirlos con un servidor.
 En VS Code instala la extensión **Live Server**, clic derecho en `index.html` → **Open with Live Server**.
-El panel está en `/admin.html` (o el enlace *Administración* al pie de la tienda).
+Los administradores son llevados al panel (`admin.html`) al iniciar sesión; desde ahí pueden abrir la tienda con **Ver tienda**.
 
 ## Publicar en internet (gratis con Firebase Hosting)
 
